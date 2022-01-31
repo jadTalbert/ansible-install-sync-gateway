@@ -1,0 +1,57 @@
+#this configures the environment via the init.yml playbook
+---
+  - hosts: localhost
+    gather_facts: true
+    vars:
+      sgw_inventory_file_name: "sync-gateway-inventory"
+      config_file_name: "ansible.cfg"
+    tasks:
+        
+      - name: Check to see if "{{config_file_name}}" exists in location -> "{{ansible_config_value}}"
+        stat:
+          path: "{{ansible_config_value}}/{{config_file_name}}"
+        register: ansible_file_exists
+
+      - name: Get the current system time in epoch format
+        command: date +%s
+        register: linux_epoch
+        when: ansible_file_exists.stat.exists
+
+      - name: If "{{config_file_name}}" already exists, create a backup of the original file.
+        ansible.builtin.copy:
+          src: "{{ansible_config_value}}/{{config_file_name}}"
+          dest: "{{ansible_config_value}}/{{config_file_name}}.bak-{{linux_epoch.stdout}}"
+          mode: "0644"
+        when: ansible_file_exists.stat.exists
+
+      - name: Create new "{{config_file_name}}" file in specified directory
+        ansible.builtin.file:
+          path: "{{ansible_config_value}}/{{config_file_name}}"
+          state: touch
+
+      - name: Open "{{config_file_name}}" file and create the content
+        copy:
+          dest: "{{ansible_config_value}}/{{config_file_name}}"
+          content: |
+            # created by Couchbase Sync Gateway Installer
+            [defaults]
+            inventory = {{inventory_file_path_value}}/{{sgw_inventory_file_name}}
+            remote_user = {{ssh_user_name}}
+            private_key_file = {{ssh_key_file_path}}
+            host_key_checking = False
+            retry_files_enabled = False
+      - name: Create Inventory File
+        ansible.builtin.file:
+          path: "{{inventory_file_path_value}}/{{sgw_inventory_file_name}}"
+          state: touch
+      - name: Modify Inventory file with default configuration
+        copy:
+          dest: "{{inventory_file_path_value}}/{{sgw_inventory_file_name}}"
+          content: |
+            #this is the default sync gateway inventory file
+            [sgw-hosts]
+            host1.acme.com
+            host2.acme.com
+            host3.acme.com
+
+

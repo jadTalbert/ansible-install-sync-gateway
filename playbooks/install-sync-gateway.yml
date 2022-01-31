@@ -1,0 +1,23 @@
+---
+  - hosts: sgw-hosts
+    become: true
+    tasks:
+ 
+      - name: Install Sync Gateway
+        shell:
+          cmd: rpm -i "{{sync_gateway_version.dest_dir}}/{{sync_gateway_version.build}}"
+        register: install_response
+
+      - name: Start Sync Gateway
+        shell:
+          cmd: sudo systemctl start sync_gateway
+
+      - name: Check to make sure Sync Gateway is running
+        shell:
+          cmd: systemctl status sync_gateway
+        register: sgw_status
+
+      - name: printing sync gateway status
+        debug:
+          msg: "{{sgw_status}}"
+

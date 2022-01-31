@@ -1,0 +1,10 @@
+#this playbook will ping your nodes
+---
+  - hosts: all
+    become: true
+    tasks:
+      
+      - name: Ping All Nodes in Cluster
+        action: ping
+        register: ping_response
+        when: operating_system.ping_nodes == true 

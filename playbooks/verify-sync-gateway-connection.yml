@@ -1,0 +1,13 @@
+---
+  - hosts: sgw-hosts
+    become: true
+    tasks:
+
+      - name: Verify Sync Gateway endpoint connectivity
+        command: curl http://localhost:4984
+        register: sgw_response
+        failed_when: sgw_response.rc != 0
+
+      - name: Display Sync Gateway Response
+        debug:
+          msg: "{{sgw_response.stdout_lines}}"

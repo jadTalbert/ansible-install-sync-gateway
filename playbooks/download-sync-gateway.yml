@@ -1,0 +1,19 @@
+---
+  - hosts: sgw-hosts
+    become: true
+    tasks:
+    
+      - name: Checking the URI for validity
+        uri:
+          url: "{{sync_gateway_version.url}}"
+          method: HEAD
+        register: uri_test
+        failed_when: uri_test.status is undefined or uri_test.status <= 0
+
+
+      - name: Attempting to Download Sync Gateway to directory->"{{sync_gateway_version.dest_dir}}" on target hosts
+        get_url:
+          url: "{{sync_gateway_version.url}}"
+          dest: "{{sync_gateway_version.dest_dir}}"
+        when: uri_test.status == 200
+        failed_when: uri_test.status > 400

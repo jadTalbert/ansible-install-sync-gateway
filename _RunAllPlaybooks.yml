@@ -1,0 +1,7 @@
+#import all playbooks and execute all plays
+---
+  - import_playbook: playbooks/ping-nodes.yml
+  - import_playbook: playbooks/download-sync-gateway.yml
+  - import_playbook: playbooks/install-sync-gateway.yml
+  - import_playbook: playbooks/verify-sync-gateway-connection.yml
+

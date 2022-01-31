@@ -1,0 +1,16 @@
+#this will uninstall Sync Gateway, so be careful and make sure this is your intention when executing this playbook
+---
+  - hosts: sgw-hosts
+    become: true
+    tasks:
+
+      - name: Include global variables in this playbook
+        include_vars:
+          file: "../group_vars/all.yml"
+
+      - name: Stop Sync Gateway Service before uninstalling
+        command: sudo systemctl stop sync_gateway
+
+      - name: Uninstall Sync Gateway Package
+        command: sudo rpm -e "{{sync_gateway_version.rpm_name}}"
+            
