@@ -87,9 +87,6 @@ Host Services                | Description
 ----------------------------|-----------------------------
 operating_system.update_packages        | yum updates
 operating_system.ping_nodes | runs ping command
-ntp_server.install  | installs NTP Server
-ntp_server.time_zone  |  sets timezone locale
-ntp_server.ntp_host  |  NTP host
 sync_gateway_version.build  | Sync Gateway version
 sync_gateway_version.url  |  URL to RPM
 sync_gateway_version.dest_dir  | directory to store downloaded RPM file  
