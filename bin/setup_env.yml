@@ -6,7 +6,7 @@
       sgw_inventory_file_name: "sync-gateway-inventory"
       config_file_name: "ansible.cfg"
     tasks:
-        
+
       - name: Check to see if "{{config_file_name}}" exists in location -> "{{ansible_config_value}}"
         stat:
           path: "{{ansible_config_value}}/{{config_file_name}}"
@@ -53,5 +53,6 @@
             host1.acme.com
             host2.acme.com
             host3.acme.com
-
-
+            #define your connected couchbase hosts below(e.g. the nodes that SGW will connect to)
+            [couchbase-hosts]
+            host4.acme.com

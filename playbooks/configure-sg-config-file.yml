@@ -1,0 +1,151 @@
+---
+  - hosts: sgw-hosts
+    become: true
+    tasks:
+
+      - name: Check to see if sync gateway config file exists in location
+        stat:
+          path: "{{sync_gateway_config_file.path}}{{sync_gateway_config_file.file_name}}"
+        register: sgw_config_file_exists
+
+      - name: show variable
+        debug:
+          msg: "{{sync_gateway_config_file.path}}{{sync_gateway_config_file.file_name}}"
+
+      - name: Get the current system time in epoch format
+        command: date +%s
+        register: linux_epoch
+        when: sgw_config_file_exists.stat.exists
+
+      - name: backup sgw config file if it already exists
+        shell: |
+          cp -p {{sync_gateway_config_file.path}}{{sync_gateway_config_file.file_name}} {{sync_gateway_config_file.path}}{{sync_gateway_config_file.file_name}}.bak-{{linux_epoch.stdout}}
+        when: sgw_config_file_exists.stat.exists
+
+
+      - name: Set Default variable
+        set_fact:
+          tls_key_file_path: ""
+
+
+      - name:  Generated SGW databases section of your config files
+        copy:
+          dest: /tmp/{{item.name}}.json
+          content: |
+            "{{item.name}}": {
+                "keypath": "{{item.ca_key_path}}",
+                "server": "couchbase://{{hostvars[inventory_hostname].groups['couchbase-hosts'][0]}}",
+                "bucket":"{{item.name}}",
+                "username" : "{{item.sg_user_name}}",
+                "password": "{{item.sg_password}}",
+                "import_docs": true,
+                "users": {
+                  "GUEST": {"disabled": false, "admin_channels": ["*"] }
+                },
+                "enable_shared_bucket_access": true,
+                "num_index_replicas": 1,
+                "allow_conflicts": false,
+                "revs_limit": 20,
+                "sync": `function sync(doc,oldDoc){
+                        channel(doc.channel)
+                }`
+               }
+        loop: "{{sync_gateway_buckets}}"
+        register: sgw_databases
+        delegate_to: localhost
+
+
+      - name: read files to get file content(e.g. pre-generated json fragments for sgw databases)
+        slurp:
+          src: "/tmp/{{item.name}}.json"
+        loop: "{{sync_gateway_buckets}}"
+        register: sgw_concat_files
+        delegate_to: localhost
+
+
+      - name: delete our working temp file if file exists and ignore errors if the file does not exist
+        shell: sudo rm /tmp/combined_tmp.json
+        ignore_errors: true
+        delegate_to: localhost
+
+      - name: combine pre-generated json fragment files to build sgw databases
+        lineinfile:
+          create: true
+          state: present
+          insertafter: EOF
+          dest: /tmp/combined_tmp.json
+          line: "{{item.content | b64decode}},"
+        loop: "{{sgw_concat_files.results}}"
+        delegate_to: localhost
+
+
+      - name: create file using touch command
+        ansible.builtin.file:
+          path: /tmp/combined.json
+          state: touch
+        delegate_to: localhost
+
+
+      - name: remove trailing comma in combined file to ensure the sgw config file is syntactically correct
+        shell:
+          cmd: sed '$ s/,$//g' /tmp/combined_tmp.json > /tmp/combined.json
+        delegate_to: localhost
+
+
+      - name: read concatinated files and register a variable to be used when generating the sgw config file
+        slurp:
+          src: /tmp/combined.json
+        register: sgw_databases_file
+        delegate_to: localhost
+
+      - name: Creating your new SGW config file with basic settings
+        copy:
+          dest: "{{sync_gateway_config_file.path}}{{sync_gateway_config_file.file_name}}"
+          content: |
+             {
+
+              "logging": {
+                  "log_file_path": "{{logging.file_path}}",
+                 "error":{
+                      "enabled": true,
+                      "rotation": {
+                          "max_size": {{logging.types.error.rotation.max_size}},
+                          "max_age": {{logging.types.error.rotation.max_age}},
+                          "localtime": false
+                      }
+                 },
+                    "info": {
+                      "enabled": true,
+                      "rotation": {
+                          "max_size": {{logging.types.error.rotation.max_size}},
+                          "max_age": {{logging.types.error.rotation.max_age}},
+                          "localtime": false
+                      }
+                  },
+                  "warn": {
+                      "enabled": true,
+                      "rotation": {
+                          "max_size": {{logging.types.error.rotation.max_size}},
+                          "max_age": {{logging.types.error.rotation.max_age}},
+                          "localtime": false
+                      }
+                  },
+                  "debug": {
+                      "enabled": true,
+                      "rotation": {
+                          "max_size": {{logging.types.error.rotation.max_size}},
+                          "max_age": {{logging.types.error.rotation.max_age}},
+                          "localtime": false
+                      }
+                  }
+
+
+                },
+
+              "adminInterface": "127.0.0.1:4985",
+              "interface": ":4984",
+              "databases": {
+                 {{sgw_databases_file.content | b64decode}}
+               }
+               }
+               }

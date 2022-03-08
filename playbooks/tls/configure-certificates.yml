@@ -1,0 +1,62 @@
+# set up self-signed certificates
+# this playbook only sets up self-signed Root and node certificates.
+# if you need to use and external CA or protect your cluster using Root, Intermediate and Node certificates, you can customize these plays to your needs.
+# Documentation can be found here -> https://docs.couchbase.com/sync-gateway/current/authentication-certs.html
+---
+  - hosts: localhost
+    become: true
+    tasks:
+
+      - name: check to see if openssl is installed
+        shell: openssl version
+        delegate_to: localhost
+        register: open_ssl_version
+
+
+      - name: show open ssl version
+        debug:
+          msg: "{{open_ssl_version.stdout}}"
+        delegate_to: localhost
+
+      - name: Create working directories
+        shell: |
+           mkdir -p servercertfiles
+           cd servercertfiles
+           mkdir -p clientcertfiles
+        delegate_to: localhost
+
+      - name: create the extensions file for use by all clients
+        copy:
+          dest: servercertfiles/clientcertfiles/client.ext
+          content: |
+            basicConstraints = CA:FALSE
+            subjectKeyIdentifier = hash
+            authorityKeyIdentifier = keyid,issuer:always
+            extendedKeyUsage = clientAuth
+            keyUsage = digitalSignature
+
+      - name: create client private key for each bucket attached to SGW
+        shell: |
+          openssl genrsa -out servercertfiles/clientcertfiles/{{item.name}}.key 2048
+        loop: "{{sync_gateway_buckets}}"
+
+      - name: generate CSR(certifiate signing request)
+        shell: openssl req -new -key servercertfiles/clientcertfiles/"{{item.name}}".key -out servercertfiles/clientcertfiles/{{item.name}}.csr -subj "/CN={{item.sg_user_name}}"
+        loop: "{{sync_gateway_buckets}}"
+
+      # IMPORTANT!!!!! you must have your previously generated Couchbase ca.pem and ca.key files(e.g. these were generated when you created your CB cluster certificates.
+      # Please take note of the paths below to know where to put them
+      - name: create the client certificates for each SGW bucket
+        shell: |
+          openssl x509 -CA {{item.ca_path}} -CAkey {{item.ca_key_path}} \
+          -CAcreateserial -days {{item.ca_expiry_days}} -req -in servercertfiles/clientcertfiles/"{{item.name}}".csr \
+          -out servercertfiles/clientcertfiles/"{{item.name}}".pem
+        loop: "{{sync_gateway_buckets}}"
+        when: item.enable_tls == true
+        register: cert_confirmation
+
+      - name: print debug info for cert
+        debug:
+          msg: "{{item.stderr_lines}}"
+        loop: "{{cert_confirmation.results}}"
+        when: item.stderr_lines is defined

@@ -1,0 +1,43 @@
+#this file contains all global ansible variables for the playbooks
+---
+  operating_system:
+    update_packages: true
+    ping_nodes: true
+  sync_gateway_config_file:
+    path: /opt/sync_gateway/etc/
+    file_name: sync_gateway.json
+  sync_gateway_version:
+    build: couchbase-sync-gateway-enterprise_2.6.1_x86_64.rpm
+    url: https://packages.couchbase.com/releases/couchbase-sync-gateway/2.6.1/couchbase-sync-gateway-enterprise_2.6.1_x86_64.rpm
+    dest_dir: /path/to/destinationDir
+    rpm_name: couchbase-sync-gateway
+  sync_gateway_buckets:
+    - name: mybucket
+      sg_user_name: yourSGUserName
+      sg_password: yourSGPassword
+      ca_path: /path/to/ca.pem
+      ca_key_path: /path/to/ca.key
+      ca_expiry_days: 3065
+  logging:
+    file_path: /path/to/sg_logs
+    types:
+      error:
+        enabled: true
+        rotation:
+          max_size: 100
+          max_age: 360
+      debug:
+        enabled: true
+        rotation:
+          max_size: 100
+          max_age: 360
+      info:
+        enabled: true
+        rotation:
+          max_size: 100
+          max_age: 360
+      warn:
+        enabled: true
+        rotation:
+          max_size: 100
+          max_age: 360
